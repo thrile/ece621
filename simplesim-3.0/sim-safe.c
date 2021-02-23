@@ -88,7 +88,7 @@ static unsigned int max_insts;
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
 /* cycle counter */
-static counter_t sim_cycle = 0;
+static counter_t sim_cycle = 1;
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
  *----------------------------------------------------------------------------*/
@@ -141,7 +141,7 @@ sim_reg_stats(struct stat_sdb_t *sdb)
   /* register performance stats */
   stat_reg_counter(sdb, "sim_cycle",
                    "total simulation time in cycles",
-                   &sim_cycle, /* initial value */0, /* format */NULL);
+                   &sim_cycle, sim_cycle, NULL);
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
  *----------------------------------------------------------------------------*/
