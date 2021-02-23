@@ -87,9 +87,11 @@ static unsigned int max_insts;
 /*------------------------------------------------------------------------------
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
-/* cycle counter */
+/* crazy global state variables, good luck */
 static counter_t sim_cycle = 0;
 #define MAX_INSN_INFLIGHT 2
+static char num_insn_inflight;
+static char gpr_reg_is_dirty[MD_NUM_IREGS];
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
  *----------------------------------------------------------------------------*/
@@ -204,6 +206,21 @@ sim_uninit(void)
   /* nada */
 }
 
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+void
+new_cycle(void)
+{
+  /* crazy global state changer because "when in rome" */
+  sim_cycle++;
+  num_insn_inflight = 0;
+  memset(gpr_reg_is_dirty,0,MD_NUM_IREGS);
+}
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
+
 
 /*
  * configure the execution engine
@@ -219,9 +236,34 @@ sim_uninit(void)
 /* current program counter */
 #define CPC			(regs.regs_PC)
 
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
 /* general purpose registers */
-#define GPR(N)			(regs.regs_R[N])
-#define SET_GPR(N,EXPR)		(regs.regs_R[N] = (EXPR))
+qword_t
+read_reg(size_t n)
+{
+  if (gpr_reg_is_dirty[n])
+  {
+    /* Attempted read after write, wait for next cycle.
+     * This should work as long as within an instruction
+     * the writes happen after the reads, otherwise there
+     * will be false positives.
+     */
+    new_cycle();
+  }
+  return regs.regs_R[n];
+}
+
+#define GPR(N) (read_reg(N))
+#define SET_GPR(N,EXPR)                                       \
+  (                                                           \
+    gpr_reg_is_dirty[N] = 1,                                  \
+    regs.regs_R[N] = (EXPR)                                   \
+  )
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
 
 #if defined(TARGET_PISA)
 
@@ -297,8 +339,9 @@ sim_main(void)
 /*------------------------------------------------------------------------------
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
-  int num_insn_inflight;
+  /* start with everything cleared */
   num_insn_inflight = 0;
+  memset(gpr_reg_is_dirty,0,MD_NUM_IREGS);
 /*------------------------------------------------------------------------------
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
@@ -322,8 +365,7 @@ sim_main(void)
       if (num_insn_inflight >= MAX_INSN_INFLIGHT)
         {
           /* pipeline is full, wait till next cycle */
-          sim_cycle++;
-          num_insn_inflight = 0;
+          new_cycle();
         }
       /* issue instruction */
       num_insn_inflight++;
