@@ -88,7 +88,8 @@ static unsigned int max_insts;
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
 /* cycle counter */
-static counter_t sim_cycle = 1;
+static counter_t sim_cycle = 0;
+#define MAX_INSN_INFLIGHT 2
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
  *----------------------------------------------------------------------------*/
@@ -142,6 +143,12 @@ sim_reg_stats(struct stat_sdb_t *sdb)
   stat_reg_counter(sdb, "sim_cycle",
                    "total simulation time in cycles",
                    &sim_cycle, sim_cycle, NULL);
+  stat_reg_formula(sdb, "sim_IPC",
+       "instructions per cycle",
+       "sim_num_insn / sim_cycle", /* format */NULL);
+  stat_reg_formula(sdb, "sim_CPI",
+       "cycles per instruction",
+       "sim_cycle / sim_num_insn", /* format */NULL);
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
  *----------------------------------------------------------------------------*/
@@ -287,6 +294,14 @@ sim_main(void)
   enum md_opcode op;
   register int is_write;
   enum md_fault_type fault;
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+  int num_insn_inflight;
+  num_insn_inflight = 0;
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
 
   fprintf(stderr, "sim: ** starting functional simulation **\n");
 
@@ -300,6 +315,21 @@ sim_main(void)
 
   while (TRUE)
     {
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+      /* start of pipeline */
+      if (num_insn_inflight >= MAX_INSN_INFLIGHT)
+        {
+          /* pipeline is full, wait till next cycle */
+          sim_cycle++;
+          num_insn_inflight = 0;
+        }
+      /* issue instruction */
+      num_insn_inflight++;
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
       /* maintain $r0 semantics */
       regs.regs_R[MD_REG_ZERO] = 0;
 #ifdef TARGET_ALPHA
