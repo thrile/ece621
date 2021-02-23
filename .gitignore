@@ -54,3 +54,13 @@ dkms.conf
 # Zip folders
 instruct-progs.tar.gz
 simplesim-3v0e.tgz
+
+# Targets
+simplesim-3.0/sim-bpred
+simplesim-3.0/sim-cache
+simplesim-3.0/sim-eio
+simplesim-3.0/sim-fast
+simplesim-3.0/sim-outorder
+simplesim-3.0/sim-profile
+simplesim-3.0/sim-safe
+benchmarks/sim-safe

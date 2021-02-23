@@ -84,6 +84,15 @@ static counter_t sim_num_refs = 0;
 /* maximum number of inst's to execute */
 static unsigned int max_insts;
 
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+/* cycle counter */
+static counter_t sim_cycle = 0;
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
+
 /* register simulator-specific options */
 void
 sim_reg_options(struct opt_odb_t *odb)
@@ -94,12 +103,12 @@ sim_reg_options(struct opt_odb_t *odb)
 "simplescalar tool set.  Unlike sim-fast, this functional simulator checks\n"
 "for all instruction errors, and the implementation is crafted for clarity\n"
 "rather than speed.\n"
-		 );
+                 );
 
   /* instruction limit */
   opt_reg_uint(odb, "-max:inst", "maximum number of inst's to execute",
-	       &max_insts, /* default */0,
-	       /* print */TRUE, /* format */NULL);
+               &max_insts, /* default */0,
+               /* print */TRUE, /* format */NULL);
 
 }
 
@@ -115,17 +124,27 @@ void
 sim_reg_stats(struct stat_sdb_t *sdb)
 {
   stat_reg_counter(sdb, "sim_num_insn",
-		   "total number of instructions executed",
-		   &sim_num_insn, sim_num_insn, NULL);
+                   "total number of instructions executed",
+                   &sim_num_insn, sim_num_insn, NULL);
   stat_reg_counter(sdb, "sim_num_refs",
-		   "total number of loads and stores executed",
-		   &sim_num_refs, 0, NULL);
+                   "total number of loads and stores executed",
+                   &sim_num_refs, 0, NULL);
   stat_reg_int(sdb, "sim_elapsed_time",
-	       "total simulation time in seconds",
-	       &sim_elapsed_time, 0, NULL);
+               "total simulation time in seconds",
+               &sim_elapsed_time, 0, NULL);
   stat_reg_formula(sdb, "sim_inst_rate",
-		   "simulation speed (in insts/sec)",
-		   "sim_num_insn / sim_elapsed_time", NULL);
+                   "simulation speed (in insts/sec)",
+                   "sim_num_insn / sim_elapsed_time", NULL);
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+  /* register performance stats */
+  stat_reg_counter(sdb, "sim_cycle",
+                   "total simulation time in cycles",
+                   &sim_cycle, /* initial value */0, /* format */NULL);
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
   ld_reg_stats(sdb);
   mem_reg_stats(mem, sdb);
 }
@@ -147,8 +166,8 @@ sim_init(void)
 /* load program into simulated state */
 void
 sim_load_prog(char *fname,		/* program to load */
-	      int argc, char **argv,	/* program arguments */
-	      char **envp)		/* program environment */
+              int argc, char **argv,	/* program arguments */
+              char **envp)		/* program environment */
 {
   /* load program text and data, set up environment, memory, and regs */
   ld_load_prog(fname, argc, argv, envp, &regs, mem, TRUE);
@@ -277,7 +296,7 @@ sim_main(void)
   /* check for DLite debugger entry condition */
   if (dlite_check_break(regs.regs_PC, /* !access */0, /* addr */0, 0, 0))
     dlite_main(regs.regs_PC - sizeof(md_inst_t),
-	       regs.regs_PC, sim_num_insn, &regs, mem);
+               regs.regs_PC, sim_num_insn, &regs, mem);
 
   while (TRUE)
     {
@@ -304,9 +323,9 @@ sim_main(void)
 
       /* execute the instruction */
       switch (op)
-	{
+        {
 #define DEFINST(OP,MSK,NAME,OPFORM,RES,FLAGS,O1,O2,I1,I2,I3)		\
-	case OP:							\
+        case OP:							\
           SYMCAT(OP,_IMPL);						\
           break;
 #define DEFLINK(OP,MSK,NAME,MASK,SHIFT)					\
@@ -314,38 +333,38 @@ sim_main(void)
           panic("attempted to execute a linking opcode");
 #define CONNECT(OP)
 #define DECLARE_FAULT(FAULT)						\
-	  { fault = (FAULT); break; }
+          { fault = (FAULT); break; }
 #include "machine.def"
-	default:
-	  panic("attempted to execute a bogus opcode");
+        default:
+          panic("attempted to execute a bogus opcode");
       }
 
       if (fault != md_fault_none)
-	fatal("fault (%d) detected @ 0x%08p", fault, regs.regs_PC);
+        fatal("fault (%d) detected @ 0x%08p", fault, regs.regs_PC);
 
       if (verbose)
-	{
-	  myfprintf(stderr, "%10n [xor: 0x%08x] @ 0x%08p: ",
-		    sim_num_insn, md_xor_regs(&regs), regs.regs_PC);
-	  md_print_insn(inst, regs.regs_PC, stderr);
-	  if (MD_OP_FLAGS(op) & F_MEM)
-	    myfprintf(stderr, "  mem: 0x%08p", addr);
-	  fprintf(stderr, "\n");
-	  /* fflush(stderr); */
-	}
+        {
+          myfprintf(stderr, "%10n [xor: 0x%08x] @ 0x%08p: ",
+                    sim_num_insn, md_xor_regs(&regs), regs.regs_PC);
+          md_print_insn(inst, regs.regs_PC, stderr);
+          if (MD_OP_FLAGS(op) & F_MEM)
+            myfprintf(stderr, "  mem: 0x%08p", addr);
+          fprintf(stderr, "\n");
+          /* fflush(stderr); */
+        }
 
       if (MD_OP_FLAGS(op) & F_MEM)
-	{
-	  sim_num_refs++;
-	  if (MD_OP_FLAGS(op) & F_STORE)
-	    is_write = TRUE;
-	}
+        {
+          sim_num_refs++;
+          if (MD_OP_FLAGS(op) & F_STORE)
+            is_write = TRUE;
+        }
 
       /* check for DLite debugger entry condition */
       if (dlite_check_break(regs.regs_NPC,
-			    is_write ? ACCESS_WRITE : ACCESS_READ,
-			    addr, sim_num_insn, sim_num_insn))
-	dlite_main(regs.regs_PC, regs.regs_NPC, sim_num_insn, &regs, mem);
+                            is_write ? ACCESS_WRITE : ACCESS_READ,
+                            addr, sim_num_insn, sim_num_insn))
+        dlite_main(regs.regs_PC, regs.regs_NPC, sim_num_insn, &regs, mem);
 
       /* go to the next instruction */
       regs.regs_PC = regs.regs_NPC;
@@ -353,6 +372,6 @@ sim_main(void)
 
       /* finish early? */
       if (max_insts && sim_num_insn >= max_insts)
-	return;
+        return;
     }
 }
