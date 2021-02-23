@@ -90,8 +90,12 @@ static unsigned int max_insts;
 /* crazy global state variables, good luck */
 static counter_t sim_cycle = 0;
 #define MAX_INSN_INFLIGHT 2
-static char num_insn_inflight;
+static char num_insn_inflight = 0;
 static char gpr_reg_is_dirty[MD_NUM_IREGS];
+/* Each instruction can access memory on fetch and data access */
+#define MAX_DIRTY_MEM (MAX_INSN_INFLIGHT * (sizeof(qword_t)+sizeof(word_t)) )
+static md_addr_t mem_dirty_addresses[MAX_DIRTY_MEM];
+static size_t num_dirty_addresses = 0;
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
  *----------------------------------------------------------------------------*/
@@ -215,7 +219,9 @@ new_cycle(void)
   /* crazy global state changer because "when in rome" */
   sim_cycle++;
   num_insn_inflight = 0;
+  num_dirty_addresses = 0;
   memset(gpr_reg_is_dirty,0,MD_NUM_IREGS);
+  memset(mem_dirty_addresses,0,MAX_DIRTY_MEM);
 }
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
@@ -301,28 +307,63 @@ read_reg(size_t n)
 #error No ISA target defined...
 #endif
 
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+void
+check_mem_dirty(md_addr_t addr, size_t size)
+{
+  int i;
+  int j;
+  for (i=0;i<num_dirty_addresses;i++)
+    {
+      for (j=0;j<size;j++)
+        {
+          if (((md_addr_t) addr+j) == mem_dirty_addresses[i])
+            {
+              /* Attempting to read from dirty byte, must wait for new cycle */
+              new_cycle();
+            }
+        }
+    }
+}
 /* precise architected memory state accessor macros */
 #define READ_BYTE(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), MEM_READ_BYTE(mem, addr))
+  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(byte_t)), MEM_READ_BYTE(mem, addr))
 #define READ_HALF(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), MEM_READ_HALF(mem, addr))
+  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(half_t)), MEM_READ_HALF(mem, addr))
 #define READ_WORD(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), MEM_READ_WORD(mem, addr))
+  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(word_t)), MEM_READ_WORD(mem, addr))
 #ifdef HOST_HAS_QWORD
 #define READ_QWORD(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), MEM_READ_QWORD(mem, addr))
+  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(qword_t)), MEM_READ_QWORD(mem, addr))
 #endif /* HOST_HAS_QWORD */
 
+void
+mark_mem_dirty(md_addr_t addr, size_t size)
+{
+  int i;
+  for (i=0;i<size;i++)
+    {
+      if (num_dirty_addresses+i >= MAX_DIRTY_MEM) 
+        panic("Get ready for a core dump %d:%d\n", num_dirty_addresses,i);
+      mem_dirty_addresses[num_dirty_addresses+i] = ((md_addr_t) addr+i);
+    }
+  num_dirty_addresses += size;
+}
 #define WRITE_BYTE(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), MEM_WRITE_BYTE(mem, addr, (SRC)))
+  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(byte_t)), MEM_WRITE_BYTE(mem, addr, (SRC)))
 #define WRITE_HALF(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), MEM_WRITE_HALF(mem, addr, (SRC)))
+  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(half_t)), MEM_WRITE_HALF(mem, addr, (SRC)))
 #define WRITE_WORD(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), MEM_WRITE_WORD(mem, addr, (SRC)))
+  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(word_t)), MEM_WRITE_WORD(mem, addr, (SRC)))
 #ifdef HOST_HAS_QWORD
 #define WRITE_QWORD(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), MEM_WRITE_QWORD(mem, addr, (SRC)))
+  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(qword_t)), MEM_WRITE_QWORD(mem, addr, (SRC)))
 #endif /* HOST_HAS_QWORD */
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
 
 /* system call handler macro */
 #define SYSCALL(INST)	sys_syscall(&regs, mem_access, mem, INST, TRUE)
@@ -340,8 +381,8 @@ sim_main(void)
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
   /* start with everything cleared */
-  num_insn_inflight = 0;
   memset(gpr_reg_is_dirty,0,MD_NUM_IREGS);
+  memset(mem_dirty_addresses,0,MAX_DIRTY_MEM);
 /*------------------------------------------------------------------------------
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
