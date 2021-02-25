@@ -96,6 +96,7 @@ static char gpr_reg_is_dirty[MD_NUM_IREGS];
 #define MAX_DIRTY_MEM (MAX_INSN_INFLIGHT * (sizeof(qword_t)+sizeof(word_t)) )
 static md_addr_t mem_dirty_addresses[MAX_DIRTY_MEM];
 static size_t num_dirty_addresses = 0;
+static char data_cache_busy = 0;
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
  *----------------------------------------------------------------------------*/
@@ -222,6 +223,7 @@ new_cycle(void)
   num_dirty_addresses = 0;
   memset(gpr_reg_is_dirty,0,MD_NUM_IREGS);
   memset(mem_dirty_addresses,0,MAX_DIRTY_MEM);
+  data_cache_busy = 0;
 }
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
@@ -312,10 +314,26 @@ check_reg(size_t n)
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
 void
+access_memory(void)
+{
+  if (!data_cache_busy)
+    {
+      /* No memory access yet this cycle, access it */
+      data_cache_busy = 1;
+      return;
+    }
+  /* Cache is busy, wait for next cycle */
+  new_cycle();
+  num_insn_inflight++;
+  data_cache_busy = 1;
+}
+void
 check_mem_dirty(md_addr_t addr, size_t size)
 {
   int i;
   int j;
+  if (addr == regs.regs_PC) fprintf(stdout,"Reading PC\n");
+  if (addr == regs.regs_NPC) fprintf(stdout,"Reading NPC\n");
   for (i=0;i<num_dirty_addresses;i++)
     {
       for (j=0;j<size;j++)
@@ -325,6 +343,7 @@ check_mem_dirty(md_addr_t addr, size_t size)
               /* Attempting to read from dirty byte, must wait for new cycle */
               new_cycle();
               num_insn_inflight++;
+              data_cache_busy = 1;
             }
         }
     }
@@ -333,6 +352,7 @@ check_mem_dirty(md_addr_t addr, size_t size)
 #define READ_BYTE(SRC, FAULT)						\
   (                                                                     \
     (FAULT) = md_fault_none, addr = (SRC),                              \
+    access_memory(),                                                    \
     check_mem_dirty(SRC,sizeof(byte_t)),                                \
     MEM_READ_BYTE(mem, addr)                                            \
   )
@@ -340,6 +360,7 @@ check_mem_dirty(md_addr_t addr, size_t size)
   (                                                                     \
     (FAULT) = md_fault_none,                                            \
     addr = (SRC),                                                       \
+    access_memory(),                                                    \
     check_mem_dirty(SRC,sizeof(half_t)),                                \
     MEM_READ_HALF(mem, addr)                                            \
   )
@@ -347,6 +368,7 @@ check_mem_dirty(md_addr_t addr, size_t size)
   (                                                                     \
     (FAULT) = md_fault_none,                                            \
     addr = (SRC),                                                       \
+    access_memory(),                                                    \
     check_mem_dirty(SRC,sizeof(word_t)),                                \
     MEM_READ_WORD(mem, addr)                                            \
   )
@@ -355,6 +377,7 @@ check_mem_dirty(md_addr_t addr, size_t size)
   (                                                                     \
     (FAULT) = md_fault_none,                                            \
     addr = (SRC),                                                       \
+    access_memory(),                                                    \
     check_mem_dirty(SRC,sizeof(qword_t)),                               \
     MEM_READ_QWORD(mem, addr)                                           \
   )
@@ -364,6 +387,8 @@ void
 mark_mem_dirty(md_addr_t addr, size_t size)
 {
   int i;
+  if (addr == regs.regs_PC) fprintf(stdout,"Writing PC\n");
+  if (addr == regs.regs_NPC) fprintf(stdout,"Writing NPC\n");
   for (i=0;i<size;i++)
     {
       if (num_dirty_addresses+i >= MAX_DIRTY_MEM) 
@@ -375,6 +400,7 @@ mark_mem_dirty(md_addr_t addr, size_t size)
 #define WRITE_BYTE(SRC, DST, FAULT)					\
   (                                                                     \
     (FAULT) = md_fault_none, addr = (DST),                              \
+    access_memory(),                                                    \
     check_mem_dirty(DST,sizeof(byte_t)),                                \
     mark_mem_dirty(DST,sizeof(byte_t)),                                 \
     MEM_WRITE_BYTE(mem, addr, (SRC))                                    \
@@ -382,6 +408,7 @@ mark_mem_dirty(md_addr_t addr, size_t size)
 #define WRITE_HALF(SRC, DST, FAULT)					\
   (                                                                     \
     (FAULT) = md_fault_none, addr = (DST),                              \
+    access_memory(),                                                    \
     check_mem_dirty(DST,sizeof(half_t)),                                \
     mark_mem_dirty(DST,sizeof(half_t)),                                 \
     MEM_WRITE_HALF(mem, addr, (SRC))                                    \
@@ -389,6 +416,7 @@ mark_mem_dirty(md_addr_t addr, size_t size)
 #define WRITE_WORD(SRC, DST, FAULT)					\
   (                                                                     \
     (FAULT) = md_fault_none, addr = (DST),                              \
+    access_memory(),                                                    \
     check_mem_dirty(DST,sizeof(word_t)),                                \
     mark_mem_dirty(DST,sizeof(word_t)),                                 \
     MEM_WRITE_WORD(mem, addr, (SRC))                                    \
@@ -397,6 +425,7 @@ mark_mem_dirty(md_addr_t addr, size_t size)
 #define WRITE_QWORD(SRC, DST, FAULT)					\
   (                                                                     \
     (FAULT) = md_fault_none, addr = (DST),                              \
+    access_memory(),                                                    \
     check_mem_dirty(DST,sizeof(qword_t)),                               \
     mark_mem_dirty(DST,sizeof(qword_t)),                                \
     MEM_WRITE_QWORD(mem, addr, (SRC))                                   \
