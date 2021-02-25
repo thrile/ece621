@@ -240,24 +240,25 @@ new_cycle(void)
  * ECE 621: start of change
  *----------------------------------------------------------------------------*/
 /* general purpose registers */
-qword_t
-read_reg(size_t n)
+void
+check_reg(size_t n)
 {
   if (gpr_reg_is_dirty[n])
   {
-    /* Attempted read after write, wait for next cycle.
+    /* Attempted access after write, wait for next cycle.
      * This should work as long as within an instruction
      * the writes happen after the reads, otherwise there
      * will be false positives.
      */
     new_cycle();
+    num_insn_inflight++; /*since this instruction stalled it still takes space*/
   }
-  return regs.regs_R[n];
 }
 
-#define GPR(N) (read_reg(N))
+#define GPR(N) (check_reg(N), regs.regs_R[N])
 #define SET_GPR(N,EXPR)                                       \
   (                                                           \
+    check_reg(N),                                             \
     gpr_reg_is_dirty[N] = 1,                                  \
     regs.regs_R[N] = (EXPR)                                   \
   )

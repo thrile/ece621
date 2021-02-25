@@ -5,7 +5,7 @@
 to run
 
 ```bash
-sim-safe cc1.alpha -O 1stmt.i
+./sim-safe cc1.alpha -O 1stmt.i
 ```
 
 to test output
@@ -19,7 +19,7 @@ diff 1stmt.s 1stmt.s.ref
 to run
 
 ```bash
-sim-safe anagram.alpha words < anagram.in > OUT
+./sim-safe anagram.alpha words < anagram.in > OUT
 ```
 
 to test output
@@ -33,7 +33,7 @@ diff OUT anagram.out
 to run
 
 ```bash
-sim-safe go.alpha 50 9 2stone9.in > OUT
+./sim-safe go.alpha 50 9 2stone9.in > OUT
 ```
 
 to test output
