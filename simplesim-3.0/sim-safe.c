@@ -324,20 +324,40 @@ check_mem_dirty(md_addr_t addr, size_t size)
             {
               /* Attempting to read from dirty byte, must wait for new cycle */
               new_cycle();
+              num_insn_inflight++;
             }
         }
     }
 }
 /* precise architected memory state accessor macros */
 #define READ_BYTE(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(byte_t)), MEM_READ_BYTE(mem, addr))
+  (                                                                     \
+    (FAULT) = md_fault_none, addr = (SRC),                              \
+    check_mem_dirty(SRC,sizeof(byte_t)),                                \
+    MEM_READ_BYTE(mem, addr)                                            \
+  )
 #define READ_HALF(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(half_t)), MEM_READ_HALF(mem, addr))
+  (                                                                     \
+    (FAULT) = md_fault_none,                                            \
+    addr = (SRC),                                                       \
+    check_mem_dirty(SRC,sizeof(half_t)),                                \
+    MEM_READ_HALF(mem, addr)                                            \
+  )
 #define READ_WORD(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(word_t)), MEM_READ_WORD(mem, addr))
+  (                                                                     \
+    (FAULT) = md_fault_none,                                            \
+    addr = (SRC),                                                       \
+    check_mem_dirty(SRC,sizeof(word_t)),                                \
+    MEM_READ_WORD(mem, addr)                                            \
+  )
 #ifdef HOST_HAS_QWORD
 #define READ_QWORD(SRC, FAULT)						\
-  ((FAULT) = md_fault_none, addr = (SRC), check_mem_dirty(SRC,sizeof(qword_t)), MEM_READ_QWORD(mem, addr))
+  (                                                                     \
+    (FAULT) = md_fault_none,                                            \
+    addr = (SRC),                                                       \
+    check_mem_dirty(SRC,sizeof(qword_t)),                               \
+    MEM_READ_QWORD(mem, addr)                                           \
+  )
 #endif /* HOST_HAS_QWORD */
 
 void
@@ -353,14 +373,34 @@ mark_mem_dirty(md_addr_t addr, size_t size)
   num_dirty_addresses += size;
 }
 #define WRITE_BYTE(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(byte_t)), MEM_WRITE_BYTE(mem, addr, (SRC)))
+  (                                                                     \
+    (FAULT) = md_fault_none, addr = (DST),                              \
+    check_mem_dirty(DST,sizeof(byte_t)),                                \
+    mark_mem_dirty(DST,sizeof(byte_t)),                                 \
+    MEM_WRITE_BYTE(mem, addr, (SRC))                                    \
+  )
 #define WRITE_HALF(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(half_t)), MEM_WRITE_HALF(mem, addr, (SRC)))
+  (                                                                     \
+    (FAULT) = md_fault_none, addr = (DST),                              \
+    check_mem_dirty(DST,sizeof(half_t)),                                \
+    mark_mem_dirty(DST,sizeof(half_t)),                                 \
+    MEM_WRITE_HALF(mem, addr, (SRC))                                    \
+  )
 #define WRITE_WORD(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(word_t)), MEM_WRITE_WORD(mem, addr, (SRC)))
+  (                                                                     \
+    (FAULT) = md_fault_none, addr = (DST),                              \
+    check_mem_dirty(DST,sizeof(word_t)),                                \
+    mark_mem_dirty(DST,sizeof(word_t)),                                 \
+    MEM_WRITE_WORD(mem, addr, (SRC))                                    \
+  )
 #ifdef HOST_HAS_QWORD
 #define WRITE_QWORD(SRC, DST, FAULT)					\
-  ((FAULT) = md_fault_none, addr = (DST), mark_mem_dirty(DST,sizeof(qword_t)), MEM_WRITE_QWORD(mem, addr, (SRC)))
+  (                                                                     \
+    (FAULT) = md_fault_none, addr = (DST),                              \
+    check_mem_dirty(DST,sizeof(qword_t)),                               \
+    mark_mem_dirty(DST,sizeof(qword_t)),                                \
+    MEM_WRITE_QWORD(mem, addr, (SRC))                                   \
+  )
 #endif /* HOST_HAS_QWORD */
 /*------------------------------------------------------------------------------
  * ECE 621: end of change
