@@ -238,8 +238,27 @@ new_cycle(void)
  * precise architected register accessors
  */
 
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+void
+branch_taken()
+{
+  /* This determination happens in stage 7, so there are 6 wasted stages
+   * in the pipeline. 
+   */
+  sim_cycle += 5;
+  new_cycle();
+}
 /* next program counter */
-#define SET_NPC(EXPR)		(regs.regs_NPC = (EXPR))
+#define SET_NPC(EXPR) \
+  { \
+    if (regs.regs_NPC != (EXPR)) branch_taken(); \
+    regs.regs_NPC = (EXPR); \
+  }
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
 
 /* current program counter */
 #define CPC			(regs.regs_PC)
