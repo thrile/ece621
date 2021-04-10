@@ -8,7 +8,7 @@ of SimpleScalar, LLC (info@simplescalar.com).
 warning: section `.comment' ignored...
 sim: command line: ./sim-outorder -issue:inorder true go.alpha 50 9 2stone9.in 
 
-sim: simulation started @ Fri Mar 19 14:42:41 2021, options follow:
+sim: simulation started @ Fri Mar 19 14:49:53 2021, options follow:
 
 sim-outorder: This simulator implements a very detailed out-of-order issue
 superscalar processor with a two-level memory system and speculative
