@@ -450,6 +450,14 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
   stat_reg_counter(sdb, buf, "total number of hits", &cp->hits, 0, NULL);
   sprintf(buf, "%s.misses", name);
   stat_reg_counter(sdb, buf, "total number of misses", &cp->misses, 0, NULL);
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+  sprintf(buf, "%s.victim_hits", name);
+  stat_reg_counter(sdb, buf, "total number of hits to victim cache (also counted in hits)", &cp->victim_hits, 0, NULL);
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
   sprintf(buf, "%s.replacements", name);
   stat_reg_counter(sdb, buf, "total number of replacements",
 		 &cp->replacements, 0, NULL);
@@ -512,6 +520,13 @@ cache_access(struct cache_t *cp,	/* cache to access */
   md_addr_t bofs = CACHE_BLK(cp, addr);
   struct cache_blk_t *blk, *repl;
   int lat = 0;
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+  int i = 0;
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
 
   /* default replacement address */
   if (repl_addr)
@@ -561,6 +576,25 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	    goto cache_hit;
 	}
     }
+
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+  /* Check for hit in victim cache */
+  for (i = 0; i < 2; ++i)
+    {
+        blk=&(cp->victim_cache[i]);
+        if (blk->tag == tag && (blk->status & CACHE_BLK_VALID))
+          {
+	    /* Hit in victim cache */
+	    cp->victim_hits++;
+	    goto cache_hit;
+          }
+    }
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
+
 
   /* cache block not found */
 
@@ -618,6 +652,18 @@ cache_access(struct cache_t *cp,	/* cache to access */
 				   CACHE_MK_BADDR(cp, repl->tag, set),
 				   cp->bsize, repl, now+lat);
 	}
+
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+      if (strcmp(cp->name, "dl1") == 0)
+        {
+          cp->victim_cache[1] = cp->victim_cache[0]; /* Evict older block and replace with younger */
+          cp->victim_cache[0] = *repl;
+        }
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
     }
 
   /* update block tags */

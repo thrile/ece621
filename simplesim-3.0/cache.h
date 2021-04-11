@@ -206,6 +206,15 @@ struct cache_t
   /* data blocks */
   byte_t *data;			/* pointer to data blocks allocation */
 
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+  struct cache_blk_t victim_cache[2]; /* Save two most recently replaced  cache blocks, [0] <== younger, [1] <== older*/
+  counter_t victim_hits; /* total number of hits to victim cache (also counted in hits) */
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
+
   /* NOTE: this is a variable-size tail array, this must be the LAST field
      defined in this structure! */
   struct cache_set_t sets[1];	/* each entry is a set */
