@@ -191,6 +191,13 @@ struct cache_t
  				   latency of the access to the lower level
  				   may be more than one cycle, as specified
  				   by the miss handler */
+/*------------------------------------------------------------------------------
+ * ECE 621: start of change
+ *----------------------------------------------------------------------------*/
+  tick_t ready;			/* time when cache is available for new request */
+/*------------------------------------------------------------------------------
+ * ECE 621: end of change
+ *----------------------------------------------------------------------------*/
 
   /* per-cache stats */
   counter_t hits;		/* total number of hits */
@@ -205,15 +212,6 @@ struct cache_t
 
   /* data blocks */
   byte_t *data;			/* pointer to data blocks allocation */
-
-/*------------------------------------------------------------------------------
- * ECE 621: start of change
- *----------------------------------------------------------------------------*/
-  struct cache_blk_t victim_cache[2]; /* Save two most recently replaced  cache blocks, [0] <== younger, [1] <== older*/
-  counter_t victim_hits; /* total number of hits to victim cache (also counted in hits) */
-/*------------------------------------------------------------------------------
- * ECE 621: end of change
- *----------------------------------------------------------------------------*/
 
   /* NOTE: this is a variable-size tail array, this must be the LAST field
      defined in this structure! */
